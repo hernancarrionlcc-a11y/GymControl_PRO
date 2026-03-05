@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mi Estado - Gym Miguel Sanchez</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/png" href="LOGO-GYM.png">
+    
+    <meta name="theme-color" content="#121212">
+
+    <style>
+        :root {
+            --bg-color: #121212; --panel-bg: #1e1e1e; --text-color: #e0e0e0;
+            --primary: #ff5722; --green: #4caf50; --yellow: #ffeb3b; --red: #f44336;
+        }
+        body { 
+            background-color: var(--bg-color); 
+            color: var(--text-color); 
+            font-family: 'Segoe UI', sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 90vh;
+        }
+        .header-logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header-logo img {
+            height: 80px;
+            border-radius: 10px;
+        }
+        .header-logo h2 {
+            margin: 10px 0 0 0;
+            color: var(--primary);
+        }
+        .card { 
+            background-color: var(--panel-bg); 
+            padding: 30px 20px; 
+            border-radius: 15px; 
+            width: 100%; 
+            max-width: 400px; 
+            box-sizing: border-box; 
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-top: 5px solid var(--primary); /* Color por defecto */
+        }
+        .loading {
+            font-size: 1.2em;
+            color: #aaa;
+        }
+        .status-icon {
+            font-size: 4em;
+            margin-bottom: 15px;
+        }
+        .Activo { color: var(--green); }
+        .Por-Vencer { color: var(--yellow); }
+        .Vencido { color: var(--red); }
+        
+        .client-name { font-size: 1.8em; margin: 0 0 10px 0; font-weight: bold; }
+        .membership-type { font-size: 1.1em; color: #aaa; margin: 0 0 20px 0; text-transform: uppercase; letter-spacing: 1px;}
+        
+        .data-box {
+            background: #2c2c2c;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+        }
+        .data-item { display: flex; flex-direction: column; }
+        .data-label { font-size: 0.8em; color: #888; text-transform: uppercase; }
+        .data-value { font-size: 1.2em; font-weight: bold; margin-top: 5px; }
+        
+        .motivational-msg { font-style: italic; color: #ccc; line-height: 1.5; }
+        
+        #resultContainer { display: none; }
+        #errorContainer { display: none; color: var(--red); }
+    </style>
+</head>
+<body>
+
+    <div class="header-logo">
+        <i class="fa-solid fa-dumbbell fa-4x" style="color: var(--primary);"></i>
+        <h2>Gym Miguel Sanchez</h2>
+    </div>
+
+    <div class="card" id="mainCard">
+        <div id="loadingContainer" class="loading">
+            <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+            <p>Buscando tu estado...</p>
+        </div>
+
+        <div id="errorContainer">
+            <i class="fa-solid fa-circle-xmark fa-4x" style="margin-bottom: 15px;"></i>
+            <h3>Código no válido o cliente no encontrado.</h3>
+            <p>Por favor, consultá en recepción.</p>
+        </div>
+
+        <div id="resultContainer">
+            <div id="iconStatus" class="status-icon Activo">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            
+            <h1 class="client-name" id="cName">Cargando...</h1>
+            <p class="membership-type" id="cMembership">Membresía</p>
+            
+            <div class="data-box">
+                <div class="data-item">
+                    <span class="data-label">Vencimiento</span>
+                    <span class="data-value" id="cDate">--/--/----</span>
+                </div>
+                <div class="data-item">
+                    <span class="data-label">Estado</span>
+                    <span class="data-value" id="cDays">--</span>
+                </div>
+            </div>
+
+            <p class="motivational-msg" id="cMsg">¡A romperla hoy!</p>
+        </div>
+    </div>
+
+    <script>
+        // ¡REEMPLAZAR CON TU NUEVA URL DE APPS SCRIPT!
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyH8KovGM55p3fiIWOZfw13nvbOYTfrbcEmVtSLw6UyyS7LLPZsO79AGrSWmY5hknGy/exec';
+
+        // Misma función de cálculo que en el panel de admin
+        function procesarFechaYDias(fechaStr) {
+            let str = fechaStr.toString();
+            let y, m, d;
+            let fechaDisplay = str;
+            
+            if(str.includes('T')) {
+                let parts = str.split('T')[0].split('-');
+                y = parseInt(parts[0]); m = parseInt(parts[1]) - 1; d = parseInt(parts[2]);
+                fechaDisplay = `${parts[2]}/${parts[1]}/${parts[0]}`; 
+            } else if (str.includes(' ')) {
+                let soloFecha = str.split(' ')[0];
+                if (soloFecha.includes('/')) {
+                    let parts = soloFecha.split('/');
+                    d = parseInt(parts[0]); m = parseInt(parts[1]) - 1; y = parseInt(parts[2]);
+                    fechaDisplay = soloFecha;
+                } else {
+                    let parts = soloFecha.split('-');
+                    y = parseInt(parts[0]); m = parseInt(parts[1]) - 1; d = parseInt(parts[2]);
+                    fechaDisplay = `${parts[2]}/${parts[1]}/${parts[0]}`; 
+                }
+            } else if (str.includes('/')) {
+                let parts = str.split('/');
+                d = parseInt(parts[0]); m = parseInt(parts[1]) - 1; y = parseInt(parts[2]);
+                fechaDisplay = str;
+            } else if (str.includes('-')) {
+                let parts = str.split('-');
+                y = parseInt(parts[0]); m = parseInt(parts[1]) - 1; d = parseInt(parts[2]);
+                fechaDisplay = `${parts[2]}/${parts[1]}/${parts[0]}`; 
+            }
+
+            let fVenc = new Date(y, m, d);
+            let hoy = new Date();
+            hoy.setHours(0,0,0,0);
+            let diffDays = Math.ceil((fVenc - hoy) / (1000 * 60 * 60 * 24));
+            
+            let textoDias = diffDays;
+            let estadoCalculadoEnVivo = "Activo"; 
+
+            if (diffDays < 0) {
+                textoDias = `Vencido (${Math.abs(diffDays)}d)`;
+                estadoCalculadoEnVivo = "Vencido";
+            }
+            else if (diffDays === 0) {
+                textoDias = `Vence hoy`;
+                estadoCalculadoEnVivo = "Por Vencer";
+            }
+            else if (diffDays === 1) {
+                textoDias = `1 día`;
+                estadoCalculadoEnVivo = "Por Vencer";
+            }
+            else {
+                textoDias = `${diffDays} días`;
+            }
+
+            return { fechaLimpia: fechaDisplay, textoDias: textoDias, estadoReal: estadoCalculadoEnVivo };
+        }
+
+        async function fetchClientData() {
+            // Obtener el ID de la URL (?id=XXXX)
+            const urlParams = new URLSearchParams(window.location.search);
+            const clientId = urlParams.get('id');
+
+            if (!clientId) {
+                showError();
+                return;
+            }
+
+            try {
+                const response = await fetch(SCRIPT_URL + "?action=getClientes");
+                const clientes = await response.json();
+                
+                // Buscar el cliente específico usando lógica de frontend
+                const cliente = clientes.find(c => c.id.toString() === clientId);
+
+                if (cliente) {
+                    renderClientData(cliente);
+                } else {
+                    showError();
+                }
+            } catch (error) {
+                console.error("Error buscando datos:", error);
+                showError();
+            }
+        }
+
+        function renderClientData(cliente) {
+            document.getElementById('loadingContainer').style.display = 'none';
+            document.getElementById('resultContainer').style.display = 'block';
+
+            const datosFecha = procesarFechaYDias(cliente.vencimiento);
+            const estado = datosFecha.estadoReal;
+
+            // Nombres y Datos
+            document.getElementById('cName').innerText = cliente.nombre;
+            document.getElementById('cMembership').innerText = "Plan: " + cliente.membresia;
+            document.getElementById('cDate').innerText = datosFecha.fechaLimpia;
+            
+            const daysElement = document.getElementById('cDays');
+            daysElement.innerText = datosFecha.textoDias;
+
+            // Elementos de estilo según estado
+            const iconStatus = document.getElementById('iconStatus');
+            const mainCard = document.getElementById('mainCard');
+            const msgElement = document.getElementById('cMsg');
+
+            if (estado === 'Activo') {
+                iconStatus.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+                iconStatus.className = 'status-icon Activo';
+                mainCard.style.borderTopColor = 'var(--green)';
+                daysElement.style.color = 'var(--green)';
+                msgElement.innerText = "¡Tu membresía está al día! A dejarlo todo en el entreno. 💪";
+            } 
+            else if (estado === 'Por Vencer') {
+                iconStatus.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+                iconStatus.className = 'status-icon Por-Vencer';
+                mainCard.style.borderTopColor = 'var(--yellow)';
+                daysElement.style.color = 'var(--yellow)';
+                msgElement.innerText = "¡Ojo! Tu membresía vence pronto. No te olvides de renovar en recepción para no perder el ritmo. 🏃‍♂️";
+            } 
+            else {
+                iconStatus.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+                iconStatus.className = 'status-icon Vencido';
+                mainCard.style.borderTopColor = 'var(--red)';
+                daysElement.style.color = 'var(--red)';
+                msgElement.innerText = "Tu membresía se encuentra vencida. ¡Te esperamos por recepción para que vuelvas con todo! 🏋️‍♂️";
+            }
+        }
+
+        function showError() {
+            document.getElementById('loadingContainer').style.display = 'none';
+            document.getElementById('errorContainer').style.display = 'block';
+            document.getElementById('mainCard').style.borderTopColor = 'var(--red)';
+        }
+
+        // Iniciar la búsqueda apenas carga la página
+        window.onload = fetchClientData;
+    </script>
+</body>
+</html>

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GymControl Pro</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="icon" type="image/png" href="LOGO-GYM.png">
+    <link rel="apple-touch-icon" href="LOGO-GYM.png">
+
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="GymControl Pro">
+    <meta name="theme-color" content="#2c3e50">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #121212; --panel-bg: #1e1e1e; --text-color: #e0e0e0;
+            --primary: #ff5722; --green: #4caf50; --yellow: #ffeb3b; --red: #f44336;
+        }
+        body { background-color: var(--bg-color); color: var(--text-color); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; }
+        header { display: flex; align-items: center; gap: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 10px; margin-bottom: 20px; }
+        header h1 { margin: 0; }
+        .container { display: flex; flex-direction: column; gap: 20px; }
+        .card { background-color: var(--panel-bg); padding: 20px; border-radius: 8px; width: 100%; box-sizing: border-box; }
+        input, select, button { width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #333; background: #2c2c2c; color: white; box-sizing: border-box; }
+        button { background-color: var(--primary); font-weight: bold; cursor: pointer; border: none; text-transform: uppercase; transition: 0.3s; }
+        button:hover { background-color: #e64a19; }
+        button:disabled { background-color: #555; cursor: not-allowed; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
+        
+        .status { height: 15px; width: 15px; border-radius: 50%; display: inline-block; vertical-align: middle; margin-right: 5px;}
+        .status-Activo { background-color: var(--green); }
+        .status-Por-Vencer { background-color: var(--yellow); }
+        .status-Vencido { background-color: var(--red); }
+        
+        .btn-wa { background-color: #25D366; color: white; border-radius: 5px; padding: 5px 15px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-weight: bold; font-size: 0.9em; white-space: nowrap;}
+        .btn-qr { background-color: #008CBA; color: white; border-radius: 5px; padding: 5px 12px; cursor: pointer; border: none; display: inline-flex; align-items: center; justify-content: center; text-transform: none; width: auto; margin-bottom: 0;}
+        .btn-qr:hover { background-color: #007399; }
+        .action-buttons { display: flex; gap: 5px; align-items: center; }
+
+        .search-result { margin-top: 15px; padding: 15px; border-radius: 5px; background: #2c2c2c; display: none; border-left: 4px solid var(--primary); }
+        .search-result p { margin: 5px 0; }
+        .input-group { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; }
+        .input-group label { white-space: nowrap; font-weight: bold; }
+        
+        #autoCompleteMsg { color: var(--green); font-size: 0.8em; margin-top: -10px; margin-bottom: 10px; display: none; }
+
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center; }
+        .modal-content { background-color: var(--panel-bg); padding: 25px; border-radius: 12px; text-align: center; border: 2px solid var(--primary); width: 280px; position: relative; }
+        .close-btn { color: #aaa; position: absolute; top: 10px; right: 15px; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close-btn:hover { color: white; }
+        #qrcode { margin-top: 20px; display: flex; justify-content: center; background: white; padding: 15px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <img src="LOGO-GYM.png" alt="Logo Gym" style="height: 50px; border-radius: 5px;">
+        <h1>GymControl Pro</h1>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <h3>Nuevo Cliente / Renovación</h3>
+            <input type="text" id="idClient" placeholder="ID / DNI" oninput="checkExistingClient()" required>
+            <div id="autoCompleteMsg"><i class="fa-solid fa-check"></i> Cliente encontrado. Datos autocompletados.</div>
+            
+            <input type="text" id="name" placeholder="Nombre y Apellido" required>
+            <input type="text" id="phone" placeholder="WhatsApp (ej. 264...)" required>
+            
+            <select id="membershipType" onchange="updatePrice()">
+                <option value="" disabled selected>Cargando membresías...</option>
+            </select>
+
+            <div class="input-group">
+                <label for="months">Meses a pagar:</label>
+                <input type="number" id="months" min="1" value="1" style="margin-bottom: 0;" onchange="updatePrice()" required>
+            </div>
+
+            <input type="text" id="priceDisplay" placeholder="Monto total a pagar" readonly>
+            <button id="btnRegistrar" onclick="registerPayment()">Registrar Pago</button>
+        </div>
+
+        <div class="card">
+            <h3>Consultar Estado Rápido</h3>
+            <input type="text" id="searchId" placeholder="Ingresar ID / DNI del cliente">
+            <button onclick="searchClient()"><i class="fa-solid fa-magnifying-glass"></i> Buscar Cliente</button>
+            
+            <div id="searchResultBox" class="search-result"></div>
+        </div>
+
+        <div class="card">
+            <h3>Estado de Clientes</h3>
+            <button onclick="loadClients()" style="width: auto; padding: 5px 15px; margin-bottom: 15px;">Actualizar Lista</button>
+            <table style="overflow-x: auto;">
+                <thead>
+                    <tr>
+                        <th>Estado</th>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Vencimiento</th>
+                        <th>Días Restantes</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="clientTable">
+                    <tr><td colspan="6" style="text-align: center;">Cargando clientes...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="qrModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeQR()">&times;</span>
+            <h3 id="qrClientName" style="margin-top: 0; color: var(--primary);">Cliente</h3>
+            <p style="font-size: 0.9em; color: #ccc; margin-bottom: 5px;">Escaneá para ver tu estado</p>
+            <div id="qrcode"></div>
+        </div>
+    </div>
+
+    <script>
+        // ¡REEMPLAZAR CON TU URL DE APPS SCRIPT!
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyH8KovGM55p3fiIWOZfw13nvbOYTfrbcEmVtSLw6UyyS7LLPZsO79AGrSWmY5hknGy/exec';
+        let preciosGlobales = {};
+        let clientesGlobales = []; 
+
+        window.onload = function() {
+            loadPrices();
+            loadClients();
+        };
+
+        function getStatusClass(estado) {
+            if (estado === 'Activo') return 'status-Activo';
+            if (estado === 'Por Vencer') return 'status-Por-Vencer';
+            return 'status-Vencido'; 
+        }
+
+        function procesarFechaYDias(fechaStr) {
+            // Si viene vacío o indefinido desde Google Sheets
+            if(!fechaStr) return { fechaLimpia: "--/--/----", textoDias: "-", estadoReal: "Vencido" };
+
+            let str = fechaStr.toString();
+            let y, m, d;
+            let fechaDisplay = str;
+            
+            if(str.includes('T')) {
+                let parts = str.split('T')[0].split('-');
+                y = parseInt(parts[0]); m = parseInt(parts[1]) - 1; d = parseInt(parts[2]);
+                fechaDisplay = `${parts[2]}/${parts[1]}/${parts[0]}`; 
+            } else if (str.includes(' ')) {
+                let soloFecha = str.split(' ')[0];
+                if (soloFecha.includes('/')) {
+                    let parts = soloFecha.split('/');
+                    d = parseInt(parts[0]); m = parseInt(parts[1]) - 1; y = parseInt(parts[2]);
+                    fechaDisplay = soloFecha;
+                } else {
+                    let parts = soloFecha.split('-');
+                    y = parseInt(parts[0]); m = parseInt(parts[1]) - 1; d = parseInt(parts[2]);
+                    fechaDisplay = `${parts[2]}/${parts[1]}/${parts[0]}`; 
+                }
+            } else if (str.includes('/')) {
+                let parts = str.split('/');
+                d = parseInt(parts[0]); m = parseInt(parts[1]) - 1; y = parseInt(parts[2]);
+                fechaDisplay = str;
+            } else if (str.includes('-')) {
+                let parts = str.split('-');
+                y = parseInt(parts[0]); m = parseInt(parts[1]) - 1; d = parseInt(parts[2]);
+                fechaDisplay = `${parts[2]}/${parts[1]}/${parts[0]}`; 
+            }
+
+            let fVenc = new Date(y, m, d);
+            let hoy = new Date();
+            hoy.setHours(0,0,0,0);
+            let diffDays = Math.ceil((fVenc - hoy) / (1000 * 60 * 60 * 24));
+            
+            let textoDias = diffDays;
+            let estadoCalculadoEnVivo = "Activo"; 
+
+            if (diffDays < 0) {
+                textoDias = `<span style="color: var(--red); font-weight: bold;">Vencido (${Math.abs(diffDays)} días)</span>`;
+                estadoCalculadoEnVivo = "Vencido";
+            }
+            else if (diffDays === 0) {
+                textoDias = `<span style="color: var(--yellow); font-weight: bold;">Vence hoy</span>`;
+                estadoCalculadoEnVivo = "Por Vencer";
+            }
+            else if (diffDays === 1) {
+                textoDias = `<span style="color: var(--yellow); font-weight: bold;">1 día</span>`;
+                estadoCalculadoEnVivo = "Por Vencer";
+            }
+            else {
+                textoDias = `${diffDays} días`;
+            }
+
+            return { fechaLimpia: fechaDisplay, textoDias: textoDias, estadoReal: estadoCalculadoEnVivo };
+        }
+
+        async function loadPrices() {
+            try {
+                // EVITAMOS LA CACHÉ AGREGANDO LA HORA
+                const response = await fetch(SCRIPT_URL + "?t=" + new Date().getTime());
+                const precios = await response.json();
+                preciosGlobales = precios;
+                const select = document.getElementById('membershipType');
+                select.innerHTML = '<option value="" disabled selected>Seleccionar Membresía...</option>';
+                for (const [membresia, precio] of Object.entries(precios)) {
+                    select.innerHTML += `<option value="${membresia}">${membresia.toUpperCase()}</option>`;
+                }
+            } catch (error) { console.error(error); }
+        }
+
+        function updatePrice() {
+            const type = document.getElementById('membershipType').value;
+            const meses = parseInt(document.getElementById('months').value) || 1;
+            
+            if (preciosGlobales[type]) {
+                const total = preciosGlobales[type] * meses;
+                document.getElementById('priceDisplay').value = "$" + total;
+            }
+        }
+
+        async function loadClients() {
+            const tbody = document.getElementById('clientTable');
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Cargando...</td></tr>';
+            try {
+                // ESTA ES LA CLAVE: "&nocache=" evita que el navegador muestre datos viejos
+                const response = await fetch(SCRIPT_URL + "?action=getClientes&nocache=" + new Date().getTime());
+                const clientes = await response.json();
+                
+                clientesGlobales = clientes; 
+                tbody.innerHTML = '';
+                
+                if(clientes.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No hay clientes aún.</td></tr>';
+                    return;
+                }
+
+                clientes.forEach(c => {
+                    const datosFecha = procesarFechaYDias(c.vencimiento);
+                    const estadoTexto = datosFecha.estadoReal; 
+                    const estadoClase = getStatusClass(estadoTexto);
+
+                    let waButton = `<a href="#" class="btn-wa" onclick="sendWA('${c.whatsapp}', '${c.nombre}', '${estadoTexto}')"><i class="fa-brands fa-whatsapp"></i></a>`;
+                    let qrButton = `<button class="btn-qr" onclick="showQR('${c.id}', '${c.nombre}')" title="Mostrar Código QR"><i class="fa-solid fa-qrcode"></i></button>`;
+                    
+                    let actions = `<div class="action-buttons">${waButton} ${qrButton}</div>`;
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><span class="status ${estadoClase}" title="${estadoTexto}"></span> ${estadoTexto}</td>
+                            <td>${c.id}</td>
+                            <td>${c.nombre}</td>
+                            <td>${datosFecha.fechaLimpia}</td>
+                            <td>${datosFecha.textoDias}</td>
+                            <td>${actions}</td>
+                        </tr>
+                    `;
+                });
+            } catch (error) { console.error(error); }
+        }
+
+        function checkExistingClient() {
+            const searchId = document.getElementById('idClient').value.trim();
+            const msg = document.getElementById('autoCompleteMsg');
+            
+            if (!searchId) {
+                msg.style.display = 'none';
+                return;
+            }
+
+            const cliente = clientesGlobales.find(c => c.id.toString() === searchId);
+
+            if (cliente) {
+                document.getElementById('name').value = cliente.nombre;
+                document.getElementById('phone').value = cliente.whatsapp;
+                
+                const memSelect = document.getElementById('membershipType');
+                let optionExists = Array.from(memSelect.options).some(opt => opt.value === cliente.membresia);
+                
+                if (optionExists) {
+                    memSelect.value = cliente.membresia;
+                    updatePrice(); 
+                }
+                
+                // --- NUEVA LÓGICA VISUAL ---
+                const datosFecha = procesarFechaYDias(cliente.vencimiento);
+                
+                if (datosFecha.estadoReal === 'Activo' || datosFecha.estadoReal === 'Por Vencer') {
+                    // Si está activo, avisamos que se suma al vencimiento actual
+                    msg.style.color = "var(--green)";
+                    msg.innerHTML = `<i class="fa-solid fa-check"></i> Cliente encontrado. Los días se sumarán a partir del ${datosFecha.fechaLimpia}.`;
+                } else {
+                    // Si está vencido, avisamos que arranca desde hoy
+                    msg.style.color = "var(--yellow)";
+                    msg.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Cliente vencido. La nueva suscripción correrá a partir de hoy.`;
+                }
+                
+                msg.style.display = 'block'; 
+            } else {
+                msg.style.display = 'none'; 
+            }
+        }
+
+        function searchClient() {
+            const searchId = document.getElementById('searchId').value.trim();
+            const resultBox = document.getElementById('searchResultBox');
+            
+            if (!searchId) {
+                alert("Por favor, ingresá un ID o DNI.");
+                return;
+            }
+
+            const cliente = clientesGlobales.find(c => c.id.toString() === searchId);
+
+            if (cliente) {
+                const datosFecha = procesarFechaYDias(cliente.vencimiento);
+                const estadoTexto = datosFecha.estadoReal;
+                const estadoClase = getStatusClass(estadoTexto);
+
+                let borderColor = 'var(--green)';
+                if (estadoTexto === 'Vencido') borderColor = 'var(--red)';
+                if (estadoTexto === 'Por Vencer') borderColor = 'var(--yellow)';
+
+                let qrButton = `<button class="btn-qr" onclick="showQR('${cliente.id}', '${cliente.nombre}')" style="margin-top: 10px;"><i class="fa-solid fa-qrcode"></i> Ver QR</button>`;
+
+                resultBox.style.display = "block";
+                resultBox.style.borderLeftColor = borderColor;
+                resultBox.innerHTML = `
+                    <p><strong>Nombre:</strong> ${cliente.nombre}</p>
+                    <p><strong>Membresía:</strong> ${cliente.membresia.toUpperCase()}</p>
+                    <p><strong>Vencimiento:</strong> ${datosFecha.fechaLimpia}</p>
+                    <p><strong>Días Restantes:</strong> ${datosFecha.textoDias}</p>
+                    <p><strong>Estado:</strong> <span class="status ${estadoClase}"></span> ${estadoTexto}</p>
+                    ${qrButton}
+                `;
+            } else {
+                resultBox.style.display = "block";
+                resultBox.style.borderLeftColor = 'var(--red)';
+                resultBox.innerHTML = `<p style="color: var(--red); font-weight: bold;"><i class="fa-solid fa-triangle-exclamation"></i> Cliente no encontrado.</p>`;
+            }
+        }
+
+        async function registerPayment() {
+            const id = document.getElementById('idClient').value;
+            const nombre = document.getElementById('name').value;
+            const telefono = document.getElementById('phone').value;
+            const membresia = document.getElementById('membershipType').value;
+            const meses = document.getElementById('months').value;
+            
+            if (!id || !nombre || !telefono || !membresia) return alert("Completá todos los campos.");
+
+            const btn = document.getElementById('btnRegistrar');
+            btn.innerText = "Registrando..."; btn.disabled = true;
+
+            const data = { action: "registrarPago", id: id, nombre: nombre, telefono: telefono, membresia: membresia, meses: meses };
+
+            try {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(data)
+                });
+                
+                alert("¡Pago registrado!");
+                document.getElementById('idClient').value = '';
+                document.getElementById('name').value = '';
+                document.getElementById('phone').value = '';
+                document.getElementById('months').value = '1';
+                document.getElementById('priceDisplay').value = '';
+                document.getElementById('membershipType').selectedIndex = 0;
+                document.getElementById('autoCompleteMsg').style.display = 'none';
+                
+                // Forzamos a que actualice la tabla con la info nueva
+                loadClients(); 
+            } catch (error) {
+                alert("Error. Revisá la consola.");
+            } finally {
+                btn.innerText = "Registrar Pago"; btn.disabled = false;
+            }
+        }
+
+        function sendWA(phone, name, estado) {
+            let msg = "";
+            if(estado === "Vencido") {
+                msg = `¡Hola ${name}!. Me contacto del gimnasio Miguel Sanchez. Tu membresía en el gimnasio se encuentra vencida. Te esperamos por recepción para renovarla.`;
+            } else if (estado === "Por Vencer") {
+                msg = `¡Hola ${name}!.Me contacto del gimnasio Miguel Sanchez. Te avisamos que tu membresía vence mañana.`;
+            } else {
+                msg = `¡Hola ${name}!.Me contacto del gimnasio Miguel Sanchez. Tu membresía está al día.`;
+            }
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+
+        let qrCodeObj = null;
+
+        function showQR(id, nombre) {
+            document.getElementById('qrModal').style.display = 'flex';
+            document.getElementById('qrClientName').innerText = nombre;
+            
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = ''; 
+            
+            let rutaActual = window.location.href.split('?')[0].replace('index.html', '');
+            if (!rutaActual.endsWith('/')) rutaActual += '/';
+            
+            const urlEstadoCliente = rutaActual + `estado.html?id=${id}`;
+            
+            qrCodeObj = new QRCode(qrContainer, {
+                text: urlEstadoCliente,
+                width: 200,
+                height: 200,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+
+        function closeQR() {
+            document.getElementById('qrModal').style.display = 'none';
+        }
+        
+        window.onclick = function(event) {
+            const modal = document.getElementById('qrModal');
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+    </script>
+</body>
+</html>
